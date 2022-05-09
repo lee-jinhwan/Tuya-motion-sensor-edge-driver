@@ -1,0 +1,4 @@
+name: 'Motion Sensors'
+packageKey: 'net.2root.smartthings.sensor.motion'
+permissions:
+  zigbee: {}

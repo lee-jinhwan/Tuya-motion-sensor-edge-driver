@@ -1,0 +1,22 @@
+name: tuya-motion
+components:
+  - id: main
+    capabilities:
+      - id: motionSensor
+        version: 1
+      - id: battery
+        version: 1
+    categories:
+      - name: MotionSensor
+preferences:
+  - name: "motionClearTime"
+    title: "Set motion clear time"
+    description: "PIR time in seconds (default 60s)"
+    required: false
+    preferenceType: enumeration
+    definition:
+      options:
+        0 : "Short (about 12 sec)"
+        1 : "Normal (about 1 min)"
+        2 : "Long (about 2 min)"
+      default: 0
