@@ -1,16 +1,19 @@
+local ZigbeeDriver = require "st.zigbee"
+
 local capabilities = require "st.capabilities"
 local zcl_clusters = require "st.zigbee.zcl.clusters"
 local cluster_base = require "st.zigbee.cluster_base"
 local data_types = require "st.zigbee.data_types"
-local ZigbeeDriver = require "st.zigbee"
 local constants = require "st.zigbee.constants"
 local defaults = require "st.zigbee.defaults"
-local battery = capabilities.battery
-local battery_defaults = require "st.zigbee.defaults.battery_defaults"
 local device_management = require "st.zigbee.device_management"
+
 local utils = require "st.utils"
 local log = require "log"
 local json = require "dkjson"
+
+local battery_defaults = require "st.zigbee.defaults.battery_defaults"
+local battery = capabilities.battery
 
 local generate_event_from_zone_status = function(driver, device, zone_status, zigbee_message)
     device:emit_event_for_endpoint(
@@ -25,6 +28,10 @@ end
 
 local function ias_zone_status_change_handler(driver, device, zb_rx)
     generate_event_from_zone_status(driver, device, zb_rx.body.zcl_body.zone_status, zb_rx)
+end
+
+local function sensor_clear_time_handler(driver, device, value, zb_rx)
+    log.debug("sensor_clear_time_handler : " .. value.value)
 end
 
 local battery_handler = function(driver, device, value, zb_rx)
@@ -52,9 +59,19 @@ local battery_handler = function(driver, device, value, zb_rx)
     device:emit_event(battery.battery(batteryMap[value]))
 end
 
+local battery_remaining_handler = function(driver, device, value, zb_rx)
+    log.debug("battery_remaining_handler")
+    device:emit_event(battery.battery(value.value // 2))
+end
+
 local init = function(driver, device) 
     log.debug("initialize device")
     battery_defaults.build_linear_voltage_init(2.3, 3.0)
+end
+
+local function refersh_handler(driver, device)
+    log.debug("refresh")
+    device:refresh()
 end
 
 local device_added = function(driver, device)
@@ -74,12 +91,17 @@ local device_added = function(driver, device)
     attribute_id = data_types.AttributeId(0xF001)
     payload = data_types.Uint8(0)
     device:send(cluster_base.write_attribute(device, cluster_id, attribute_id, payload))
+    device:send(cluster_base.read_attribute(device, cluster_id, attribute_id))
 end
 
 local do_configure = function(driver, device)
     log.debug("do configure")
     
     device_management.configure(driver, device)
+
+    device:send(device_management.build_bind_request(device, zcl_clusters.PollControl.ID, driver.environment_info.hub_zigbee_eui))
+    device:send(zcl_clusters.PollControl.attributes.CheckInInterval:configure_reporting(device, 0, 3600, 0))
+    device:send(zcl_clusters.PollControl.attributes.CheckInInterval:write(device, data_types.Uint32(30)))
 end
 
 local function info_changed(driver, device, event, args)
@@ -106,7 +128,13 @@ end
 local zigbee_motion_driver = {
     supported_capabilities = {
         capabilities.motionSensor,
-        capabilities.battery
+        capabilities.battery,
+        capabilities.refresh
+    },
+    capability_handlers = {
+        [capabilities.refresh.ID] = {
+            [capabilities.refresh.commands.refresh.NAME] = refersh_handler
+        }
     },
     zigbee_handlers = {
         global = {},
@@ -117,10 +145,12 @@ local zigbee_motion_driver = {
         },
         attr = {
             [zcl_clusters.IASZone.ID] = {
-                [zcl_clusters.IASZone.attributes.ZoneStatus.ID] = ias_zone_status_attr_handler
+                [zcl_clusters.IASZone.attributes.ZoneStatus.ID] = ias_zone_status_attr_handler,
+                [0xF001] = sensor_clear_time_handler
             },
             [zcl_clusters.PowerConfiguration.ID] = {
-                [zcl_clusters.PowerConfiguration.attributes.BatteryVoltage.ID] = battery_handler
+                [zcl_clusters.PowerConfiguration.attributes.BatteryVoltage.ID] = battery_handler,
+                [zcl_clusters.PowerConfiguration.attributes.BatteryPercentageRemaining.ID] = battery_remaining_handler
             }
         },
         zdo = {}
