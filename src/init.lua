@@ -15,48 +15,8 @@ local json = require "dkjson"
 local battery_defaults = require "st.zigbee.defaults.battery_defaults"
 local battery = capabilities.battery
 
-local generate_event_from_zone_status = function(driver, device, zone_status, zigbee_message)
-    device:emit_event_for_endpoint(
-        zigbee_message.address_header.src_endpoint.value,
-        (zone_status:is_alarm1_set() or zone_status:is_alarm2_set()) and capabilities.motionSensor.motion.active() or capabilities.motionSensor.motion.inactive()
-    )
-end
-
-local function ias_zone_status_attr_handler(driver, device, zone_status, zb_rx)
-    generate_event_from_zone_status(driver, device, zone_status, zb_rx)
-end
-
-local function ias_zone_status_change_handler(driver, device, zb_rx)
-    generate_event_from_zone_status(driver, device, zb_rx.body.zcl_body.zone_status, zb_rx)
-end
-
 local function sensor_clear_time_handler(driver, device, value, zb_rx)
     log.debug("sensor_clear_time_handler : " .. value.value)
-end
-
-local battery_handler = function(driver, device, value, zb_rx)
-    log.debug("battery voltage : " .. value.value)
-    local batteryMap = {
-        [28] = 100,
-        [27] = 100,
-        [26] = 100,
-        [25] = 90,
-        [24] = 90,
-        [23] = 70,
-        [22] = 70,
-        [21] = 50,
-        [20] = 50,
-        [19] = 30,
-        [18] = 30,
-        [17] = 15,
-        [16] = 1,
-        [15] = 0
-    }
-    local minVolts = 15
-    local maxVolts = 28
-    value = utils.clamp_value(value.value, minVolts, maxVolts)
-
-    device:emit_event(battery.battery(batteryMap[value]))
 end
 
 local battery_remaining_handler = function(driver, device, value, zb_rx)
@@ -137,19 +97,11 @@ local zigbee_motion_driver = {
         }
     },
     zigbee_handlers = {
-        global = {},
-        cluster = {
-            [zcl_clusters.IASZone.ID] = {
-                [zcl_clusters.IASZone.client.commands.ZoneStatusChangeNotification.ID] = ias_zone_status_change_handler,
-            }
-        },
         attr = {
             [zcl_clusters.IASZone.ID] = {
-                [zcl_clusters.IASZone.attributes.ZoneStatus.ID] = ias_zone_status_attr_handler,
                 [0xF001] = sensor_clear_time_handler
             },
             [zcl_clusters.PowerConfiguration.ID] = {
-                [zcl_clusters.PowerConfiguration.attributes.BatteryVoltage.ID] = battery_handler,
                 [zcl_clusters.PowerConfiguration.attributes.BatteryPercentageRemaining.ID] = battery_remaining_handler
             }
         },
