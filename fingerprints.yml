@@ -34,3 +34,18 @@ zigbeeManufacturer:
     manufacturer: _TZE200_3towulqd
     model: TS0601
     deviceProfileName: tuya-motion
+  - id: "_TZ3040_6ygjfyll/TS0202"
+    deviceLabel: Motion Sensor
+    manufacturer: _TZ3040_6ygjfyll
+    model: TS0202
+    deviceProfileName: tuya-motion
+  - id: "_TZ3000_hgu1dlak/TS0202"
+    deviceLabel: Motion Sensor
+    manufacturer: _TZ3000_hgu1dlak
+    model: TS0202
+    deviceProfileName: tuya-motion
+  - id: "_TYZB01_vwqnz1sn/TS0202"
+    deviceLabel: Motion Sensor
+    manufacturer: _TYZB01_vwqnz1sn
+    model: TS0202
+    deviceProfileName: tuya-motion
